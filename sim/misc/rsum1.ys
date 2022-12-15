@@ -1,0 +1,49 @@
+    .pos 0
+init:
+    irmovq  Stack, %rsp     # Set up stack pointer
+    rrmovq  %rsp,%rbp       # Set up base pointer
+    irmovq  ele1,%rdi
+    irmovq  $0x18, %r8        #Note 1 : unsure of what this should be
+    call    rsum_list        # Execute main program
+    halt                    # Terminate program
+
+# Sample linked list
+    .align 8
+ele1:   
+    .quad 0x00
+    .quad ele2
+ele2:
+    .quad 0x0b0
+    .quad ele3
+ele3:   
+    .quad 0xc00
+    .quad 0
+
+    # int sum_list(list_ptr ls)
+rsum_list:
+    pushq   %rbp
+    rrmovq  %rsp,%rbp
+    xorq    %rax,%rax       # val = 0
+    subq %r8, %rsp              #subtract constant from rsp , not sure why we need to do this -> saw this in x86 code
+    rmmovq %rdi, $-0x18(%rbp)      #move ls to -18(%rbp)
+    andq %rdi, %rdi             #check if 0   
+    je End
+    mrmovq $-0x18(%rbp), %rax
+    mrmovq (%rax), %rax            #rax gets ls->val
+    rmmovq %rax, $-0x10(%rbp)         #the val obtained is stored in -10(%rbp)
+    mrmovq $-0x18(%rbp), %rax         #rax becomes ls again
+    mrmovq $0x8(%rax), %rax          # rax gets ls-> next
+    rmmovq %rax, %rdi             #this is copied to rdi for next recursive call
+    call rsum_list
+    rmmovq %rax, $-0x8(%rbp)          #rax will contain ans from recursive call
+    mrmovq $-0x10(%rbp), %rdx       #retrieve ans. of current node from -10(%rbbp) , where we stored it before recursion
+    mrmovq $-0x8(%rbp), %rax      
+    addq %rdx, %rax           #adding
+End :
+    rrmovq %rbp, %rsp
+    popq %rbp
+    nop                     # makes sure stop in 31 steps
+    ret
+    
+    .pos 0x200
+Stack:

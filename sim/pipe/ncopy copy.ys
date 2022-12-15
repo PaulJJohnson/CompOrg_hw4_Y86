@@ -1,0 +1,122 @@
+#/* $begin ncopy-ys */
+##################################################################
+# ncopy.ys - Copy a src block of len words to dst.
+# Return the number of positive words (>0) contained in src.
+#
+# Include your name and ID here.
+#
+# Describe how and why you modified the baseline code.
+#
+##################################################################
+# Do not modify this portion
+# Function prologue.
+# %rdi = src, %rsi = dst, %rdx = len
+ncopy:
+
+##################################################################
+# You can modify this portion
+	# Loop header
+	xorq %rax,%rax      	# count = 0;
+    andq %rdx,%rdx      	# len <= 0?
+    jle Done        		# if so, goto Done:
+	iaddq $-3,%rdx			# checks if the loop should be done
+	jl Cleanup
+	#iaddq $-3, %rdx
+
+Loop:   
+    mrmovq (%rdi), %r10     # Get value of item 1 of set
+    mrmovq 0x8(%rdi), %r11  # Get value of item 2 of set
+	mrmovq 0x16(%rdi), %r8	# Get value of item 3 of set
+
+    rmmovq %r10, (%rsi)     # Copy value of item 1 to dst
+    rmmovq %r11, 0x8(%rsi)  # Copy value of item 2 to dst
+	rmmovq %r8, 0x16(%rsi) # Copy value of item 3 to dst
+	
+Val1:
+	# Check first value
+    andq %r10, %r10     	# val <= 0?
+    jle Val2            	# if so, don't iterate count
+    iaddq $1, %rax			# count++
+
+Val2:   
+	# Checks second value
+    andq %r11, %r11 		# check if src[1] <= 0
+    jle Val3	       		# if so don’t iterate count & go on
+    iaddq $1, %rax			# count++
+
+Val3:   
+	# Checks third value
+    andq %r8, %r8 		# check if src[1] <= 0
+    jle IteratePointers		# if so don’t iterate count & go on
+    iaddq $1, %rax			# count++
+
+# Iterates and saves the pointer locations
+IteratePointers:
+    iaddq $24, %rdi     	# increase stack or base pointer to get next 2 vals
+    iaddq $24, %rsi     	# increase stack or base pointer to store next 2 vals
+
+# Determines if we need to loop again or go to cleanup
+ContinueLoop:				# if more items, loop again
+	iaddq $-3, %rdx			# need len offset when loop not taken
+	# 1. >= 3 items left : rdx >= 0 -> loop back
+	# 2. 2 items left : rdx = -1
+	# 3. 1 item left : rdx = -2
+	# 4. 0 items left : rdx = -3
+    jge Loop            	# go back into loop if length >= 2
+	# rdx will never be >= 0 here
+
+# Takes care of any potential extra items
+Cleanup:
+    #irmovq $1, %r10
+    #subq %r10, %rdx
+	# Using the iaddq we saved an instruction step
+	#iaddq $-2, %rdx
+	# Will be negative if there are no more items
+	iaddq $3, %rdx
+	# 1. 2 items left : rdx = 2
+	# 2. 1 item left : rdx = 1
+	# 3. 0 items left : rdx = 0
+    je Done             	# if rdx = 0, jmp to Done
+	# If this check fails then it has only 1 item left
+	iaddq $-2, %rdx
+	je CleanupTwoItems		# if 0, 2 items remaining
+
+CleanupOneItem:
+	# Copy remaining value
+    mrmovq (%rdi), %r10     # get next val
+    rmmovq %r10, (%rsi)     # move val onto stack
+
+	# Check whether remaining value is positive
+    andq %r10, %r10     	# check if val <= 0
+    jle Done            	# skip count if val < 0
+    iaddq $1, %rax      	# same as iaddq $1, %rax
+
+	jmp Done
+CleanupTwoItems:
+	# Copy remaining two values
+	mrmovq (%rdi), %r10     # get next val
+	mrmovq $8(%rdi), %r11
+    rmmovq %r10, (%rsi)     # move val onto stack
+	rmmovq %r11, $8(%rsi)     # move val onto stack
+
+	# Check whether remaining value is positive
+    andq %r10, %r10     	# check if val <= 0
+    jle val1set            	# skip count if val < 0
+    iaddq $1, %rax      	# same as iaddq $1, %rax
+
+val1set:
+	andq %r11, %r11
+	jle val2set
+	iaddq $1, %rax
+
+val2set:
+	jmp Done
+##################################################################
+# Do not modify the following section of code
+# Function epilogue.
+Done:
+	ret
+##################################################################
+# Keep the following label at the end of your function
+End:
+#/* $end ncopy-ys */

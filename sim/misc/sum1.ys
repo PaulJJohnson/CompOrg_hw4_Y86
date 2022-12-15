@@ -1,0 +1,47 @@
+# HawkId: PJonhson16
+# Name: Paul Johnson
+    .pos 0
+    irmovq stack,%rsp       # Set up the stack pointer
+    #rrmovq %rsp,%rbp        # Set up the base pointer
+    call main               # Execute program
+    halt                    # Terminate program
+
+# Sample linked list
+    .align 8
+ele1:
+    .quad 0x00a
+    .quad ele2
+ele2:
+    .quad 0x0b0
+    .quad ele3
+ele3:
+    .quad 0xc00
+    .quad 0
+
+main:
+    irmovq ele1,%rax        # Gets the value of the first node and stores it in the register
+    pushq %rax              # Stores the value of the first node on the stack + 8
+    call sum_list
+    ret
+
+sum_list:
+    pushq %rbp              # Setup of the stack structure + 8
+    rrmovq %rsp,%rbp        # Moving stack pointer value into the rbp
+    xorq %rax,%rax          # Set value to 0 to start summation
+    mrmovq 16(%rbp),%rdx    # Gets the pointer of the node in the stack
+    andq %rdx,%rdx          # Compare the next pointer to identify if it is null
+    je end                  # Jump to the end if the next pointer is null
+loop:
+    mrmovq (%rdx),%rcx      # Get node value
+    addq %rcx,%rax          # Add node value to sum
+    mrmovq 8(%rdx),%rdx     # Iterate to the next node
+    andq %rdx,%rdx          # Check if the pointer is null
+    jne loop                # Loop if the node pointer is not null
+end:
+    #rrmovq %rbp,%rsp       # The stack pointer is already pointing to the memory location of the return address
+    popq %rbp
+    #nop
+    ret
+
+    .pos 0x200
+stack:

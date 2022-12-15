@@ -1,0 +1,45 @@
+                            | # HawkId: PJohnson16
+                            | # Name: Paul Johnson
+0x000:                      |     .pos 0
+0x000: 30f40002000000000000 |     irmovq stack,%rsp       # Set up the stack pointer
+0x00a: 804800000000000000   |     call main               # Execute program
+0x013: 00                   |     halt                    # Terminate program
+                            | 
+                            | # Sample linked list
+0x018:                      |     .align 8
+0x018:                      | ele1:
+0x018: 0a00000000000000     |     .quad 0x00a
+0x020: 2800000000000000     |     .quad ele2
+0x028:                      | ele2:
+0x028: b000000000000000     |     .quad 0x0b0
+0x030: 3800000000000000     |     .quad ele3
+0x038:                      | ele3:
+0x038: 000c000000000000     |     .quad 0xc00
+0x040: 0000000000000000     |     .quad 0
+                            | 
+0x048:                      | main:
+0x048: 30f71800000000000000 |     irmovq ele1,%rdi        # Gets the value of the first node and stores it in the register
+0x052: a0af                 |     pushq %r10              # Save callee-saved register for tracking each iterations node value
+0x054: 806000000000000000   |     call sum_list          # Initial call
+0x05d: b0af                 |     popq %r10               # Restore the caller-saved register value
+0x05f: 90                   |     ret
+                            | 
+0x060:                      | sum_list:
+                            |     #pushq %rbp              # Setup of the stack structure + 8
+                            |     #rrmovq %rsp,%rbp        # Moving stack pointer value into the rbp
+0x060: 6300                 |     xorq %rax,%rax          # Set value to 0 to start summation
+                            |     #mrmovq 16(%rsp),%rdx    # Gets the pointer of the node in the stack
+0x062: 6277                 |     andq %rdi,%rdi          # Compare the next pointer to identify if it is null
+0x064: 738e00000000000000   |     je end                  # Jump to the end if the next pointer is null
+0x06d:                      | loop:
+0x06d: 50a70000000000000000 |     mrmovq (%rdi),%r10      # Get node value
+0x077: 60a0                 |     addq %r10,%rax          # Add node value to sum
+0x079: 50770800000000000000 |     mrmovq 8(%rdi),%rdi     # Iterate to the next node
+0x083: 6277                 |     andq %rdi,%rdi          # Check if the pointer is null
+0x085: 746d00000000000000   |     jne loop                # Loop if the node pointer is not null
+0x08e:                      | end:
+                            |     #popq %rbp
+0x08e: 90                   |     ret
+                            | 
+0x200:                      |     .pos 0x200
+0x200:                      | stack:

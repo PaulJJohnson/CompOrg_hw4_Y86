@@ -1,0 +1,248 @@
+#/* $begin ncopy-ys */
+##################################################################
+# ncopy.ys - Copy a src block of len words to dst.
+# Return the number of positive words (>0) contained in src.
+#
+# Include your name and ID here.
+#
+#	Name: Paul Johnson
+#	HawkId: pjohnson16
+#
+# Describe how and why you modified the baseline code.
+#
+#	Using a loop unrolling, I was able to limit the number of times
+#	the loop condition needed to be checked. This also meant that
+#	I had to figure out a way to deal with the clean up afterwards.
+#	This was because not every solution is divisible by 2, 5, or 10
+#	so we inevidably had left-over items not being copied.
+#
+#	This was dealt with using a jump-table which allowed me to
+#	arithmetically determine the number of items needed to be dealt
+#	with at the end. Using basic addition, I took the number of remaining
+#	items and extrapilated out the address of the associated jump marker
+#	and then used that value as an offset and then pushed that value so
+#	the next execution would be in the location of the determined location.
+#	This allowed me to forgo using a collection of conditional jumps. This
+#	helped improve the performance of the cleanup.
+#
+#	I also implemented the iaddq instruction as I did in the last assignment.
+#	This was helpful because the number of instructions needed to check a
+#	values positivity was halved. This helped performance quite a bit.
+#
+##################################################################
+# Do not modify this portion
+# Function prologue.
+# %rdi = src, %rsi = dst, %rdx = len
+ncopy:
+
+##################################################################
+# You can modify this portion
+	# Loop header
+	xorq %rax,%rax			# count = 0;
+	iaddq $-10,%rdx			# Increment 10 because its a do-while loop.
+	jle Remaining			# If 10 or fewer items then do not enter loop
+
+GetFirst5Items:
+	# Retrieve the first 5 items and copy them to the destination block.
+	mrmovq (%rdi),%rcx		# Get value of item 1
+	mrmovq $8(%rdi),%r8     # Get value of item 2
+	mrmovq $16(%rdi),%r9    # Get value of item 3
+	mrmovq $24(%rdi),%r10   # Get value of item 4
+	mrmovq $32(%rdi),%r11   # Get value of item 5
+	rmmovq %rcx,(%rsi)		# Copy value to dst 1
+	rmmovq %r8,$8(%rsi)     # Copy value to dst 2
+	rmmovq %r9,$16(%rsi)    # Copy value to dst 3
+	rmmovq %r10,$24(%rsi)   # Copy value to dst 4
+	rmmovq %r11,$32(%rsi)   # Copy value to dst 5
+
+	andq %rcx,%rcx			# If value <= 0, jump to next
+	jle CheckItem2			# Ensures the value is positive
+	iaddq $1,%rax          	# count++
+
+CheckItem2:
+	andq %r8,%r8         	# If value <= 0, jump to next
+	jle CheckItem3			# Ensures the value is positive
+	iaddq $1,%rax         	# count++
+
+CheckItem3:
+	andq %r9,%r9         	# If value <= 0, jump to next
+	jle CheckItem4			# Ensures the value is positive
+	iaddq $1,%rax         	# count++
+
+CheckItem4:
+	andq %r10,%r10          # If value <= 0, jump to next
+	jle CheckItem5			# Ensures the value is positive
+	iaddq $1,%rax         	# count++
+
+CheckItem5:
+	andq %r11,%r11          # If value <= 0, jump to next
+	jle GetNext5Items		# Ensures the value is positive
+	iaddq $1,%rax         	# count++
+
+GetNext5Items:
+	# Needed to re-use the registers since there aren't enough
+	# to effectively use 10 of them.
+	# Since we are still in the same iteration of the loop,
+	# the  pointers haven't been updated sp we continue
+	# form where we left off.
+	mrmovq $40(%rdi), %rcx   # Get value of item 1
+	mrmovq $48(%rdi), %r8    # Get value of item 2
+	mrmovq $56(%rdi), %r9    # Get value of item 3
+	mrmovq $64(%rdi), %r10   # Get value of item 4
+	mrmovq $72(%rdi), %r11   # Get value of item 5
+	rmmovq %rcx, $40(%rsi)   # Copy value to dst 1
+	rmmovq %r8, $48(%rsi)    # Copy value to dst 2
+	rmmovq %r9, $56(%rsi)    # Copy value to dst 3
+	rmmovq %r10, $64(%rsi)   # Copy value to dst 4
+	rmmovq %r11, $72(%rsi)   # Copy value to dst 5
+
+CheckItem6:
+	andq %rcx,%rcx         	# If item 5 is not positive, skip to next value
+	jle CheckItem7			# Ensures the value is positive
+	iaddq $1,%rax         	# count++
+
+CheckItem7:
+	andq %r8,%r8         	# If item 6 is not positive, skip to next value
+	jle CheckItem8			# Ensures the value is positive
+	iaddq $1,%rax         	# count++
+
+CheckItem8:
+	andq %r9,%r9         	# If item 7 is not positive, skip to next value
+	jle CheckItem9			# Ensures the value is positive
+	iaddq $1, %rax         	# count++
+
+CheckItem9:
+	andq %r10,%r10         	# If item 8 is not positive, skip to next value
+	jle CheckItem10			# Ensures the value is positive
+	iaddq $1,%rax         	# count++
+	
+CheckItem10:
+	andq %r11,%r11         	# If item 9 is not positive, skip to next value
+	jle IterateLoop			# Ensures the value is positive
+	iaddq $1,%rax         	# count++
+
+IterateLoop:
+	iaddq $80,%rdi			# Iterate the pointer to the source block
+	iaddq $80,%rsi			# Iterate the pointer rto the destination block
+	iaddq $-10,%rdx			# Check if the loop should be re-entered
+	jg GetFirst5Items		# Re-enter loop if more than 10 items left
+
+Remaining:
+	addq %rdx,%rdx			# len *= 8;
+	addq %rdx,%rdx
+	addq %rdx,%rdx
+	mrmovq EndOfTable(%rdx),%rdx # use a jumptable to deal with the remaining items
+	pushq %rdx				# jmp *(EndOfTable + 8*(len0 - 10))
+	ret
+
+# 10 items remain
+ItemCnt10:	
+	mrmovq $72(%rdi),%r10	# Get the value for item 10
+	rmmovq %r10,$72(%rsi)	# Save the value to source block
+	andq %r10,%r10         	# If item 10 is not positive, skip to next value
+	jle ItemCnt9			# Ensures the value is positive
+	iaddq $1,%rax         	# count++
+
+# 9 items remaining
+ItemCnt9:
+	mrmovq $64(%rdi),%r10	# Get the value for item 9
+	rmmovq %r10,$64(%rsi)	# Save the value to source block
+	andq %r10,%r10         	# If item 9 is not positive, skip to next value
+	jle ItemCnt8			# Ensures the value is positive
+	iaddq $1,%rax			# count++
+
+# 8 items remaining
+ItemCnt8:	
+	mrmovq $56(%rdi),%r10	# Get the value for item 8
+	rmmovq %r10,$56(%rsi)	# Save the value to source block
+	andq %r10,%r10         	# If item 8 is not positive, skip to next value
+	jle ItemCnt7			# Ensures the value is positive
+	iaddq $1,%rax			# count++
+
+# 7 items remaining
+ItemCnt7:	
+	mrmovq $48(%rdi),%r10	# Get the value for item 7
+	rmmovq %r10,$48(%rsi)	# Save the value to source block
+	andq %r10, %r10         # If item 7 is not positive, skip to next value
+	jle ItemCnt6			# Ensures the value is positive
+	iaddq $1,%rax			# count++
+
+# 6 items remaining
+ItemCnt6:	
+	mrmovq $40(%rdi),%r10	# Get the value for item 6
+	rmmovq %r10,$40(%rsi)	# Save the value to source block
+	andq %r10,%r10         	# If item 6 is not positive, skip to next value
+	jle ItemCnt5			# Ensures the value is positive
+	iaddq $1, %rax			# count++
+
+# 5 items remaining
+ItemCnt5:	
+	mrmovq $32(%rdi),%r10	# Get the value for item 5
+	rmmovq %r10,$32(%rsi)	# Save the value to source block
+	andq %r10,%r10         	# If item 5 is not positive, skip to next value
+	jle ItemCnt4			# Ensures the value is positive
+	iaddq $1,%rax			# count++
+
+# 4 items remaining
+ItemCnt4:	
+	mrmovq $24(%rdi),%r10	# Get the value for item 4
+	rmmovq %r10,$24(%rsi)	# Save the value to source block
+	andq %r10,%r10         	# If item 4 is not positive, skip to next value
+	jle ItemCnt3			# Ensures the value is positive
+	iaddq $1,%rax			# count++
+
+# 3 items remaining
+ItemCnt3:	
+	mrmovq $16(%rdi),%r10	# Get the value for item 3
+	rmmovq %r10,$16(%rsi)	# Save the value to source block
+	andq %r10,%r10         	# If item 3 is not positive, skip to next value
+	jle ItemCnt2			# Ensures the value is positive
+	iaddq $1,%rax
+
+# 2 items remaining
+ItemCnt2:	
+	mrmovq $8(%rdi),%r10	# Get the value for item 2
+	rmmovq %r10,$8(%rsi)	# Save the value to source block
+	andq %r10,%r10         	# If item 2 is not positive, skip to next value
+	jle ItemCnt1			# Ensures the value is positive
+	iaddq $1,%rax			# count++
+
+# 1 item remaining
+ItemCnt1:	
+	mrmovq (%rdi),%r10		# Get the value for item 1
+	rmmovq %r10,(%rsi)		# Save the value to source block
+	andq %r10,%r10         	# If item 1 is not positive, skip to next value
+	jle Done				# Ensures the value is positive
+	iaddq $1,%rax			# count++
+
+# No more items left; Execution done
+ItemCnt0:	
+	jmp Done
+
+##################################################################
+# Do not modify the following section of code
+# Function epilogue.
+Done:
+	ret
+##################################################################
+# Keep the following label at the end of your function
+# Jump table is used for the remaining values after the loop is
+# done executing. We use a jump table in order to allow fal-through
+# as well as allow for a more dynamic execution of the cleanup based
+# on arithmetic rather than a miriad of conditional jumps. This helps
+# improve performance by limiting the number of mispredicted jumps.
+StartOfTable:
+	.quad	ItemCnt0
+	.quad	ItemCnt1
+	.quad	ItemCnt2
+	.quad	ItemCnt3
+	.quad	ItemCnt4
+	.quad	ItemCnt5
+	.quad	ItemCnt6
+	.quad	ItemCnt7
+	.quad	ItemCnt8
+	.quad	ItemCnt9
+EndOfTable:	.quad	ItemCnt10
+
+End:
+#/* $end ncopy-ys */
