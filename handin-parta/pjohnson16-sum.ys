@@ -1,0 +1,41 @@
+# HawkId: PJohnson16
+# Name: Paul Johnson
+    .pos 0
+    irmovq stack,%rsp       # Set up the stack pointer
+    call main               # Execute program
+    halt                    # Terminate program
+
+# Sample linked list
+    .align 8
+ele1:
+    .quad 0x00a
+    .quad ele2
+ele2:
+    .quad 0x0b0
+    .quad ele3
+ele3:
+    .quad 0xc00
+    .quad 0
+
+main:
+    irmovq ele1,%rdi        # Gets the value of the first node and stores it in the register
+    pushq %r10              # Save callee-saved register for tracking each iterations node value
+    call sum_list           # Initial call
+    popq %r10               # Restore the caller-saved register value
+    ret
+
+sum_list:
+    xorq %rax,%rax          # Set value to 0 to start summation
+    andq %rdi,%rdi          # Compare the next pointer to identify if it is null
+    je end                  # Jump to the end if the next pointer is null
+loop:
+    mrmovq (%rdi),%r10      # Get node value
+    addq %r10,%rax          # Add node value to sum
+    mrmovq 8(%rdi),%rdi     # Iterate to the next node
+    andq %rdi,%rdi          # Check if the pointer is null
+    jne loop                # Loop if the node pointer is not null
+end:
+    ret
+
+    .pos 0x200
+stack:

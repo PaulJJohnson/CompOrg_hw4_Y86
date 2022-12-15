@@ -1,0 +1,44 @@
+# HawkId: PJohnson16
+# Name: Paul Johnson
+
+.pos 0
+    irmovq stack,%rsp       # Set up the stack pointer
+    call main               # Execute program
+    halt                    # Terminate program
+
+    .align 8
+src:
+    .quad 0x00a
+    .quad 0x0b0
+    .quad 0xc00
+dest:
+    .quad 0x111
+    .quad 0x222
+    .quad 0x333
+
+main:
+    pushq %r10
+    irmovq src,%rdi         # Sets the first arg to the source block
+    irmovq dest,%rsi        # Sets the second arg to the destination block
+    irmovq $0x3,%rdx        # Sets the third arg to the length of the lists
+    call copy_block
+    popq %r10
+    ret
+
+copy_block:
+    xorq %rax,%rax
+    jmp test
+loop:
+	mrmovq (%rdi),%r10	    # Get *src value to copy
+    rmmovq %r10,(%rsi)      # Copies source to destination
+    xorq %r10,%rax
+	iaddq $8,%rdi           # Iterate source pointer
+    iaddq $8,%rsi           # Iterate destination pointer
+	iaddq $-1,%rdx          # count--
+test:
+    andq %rdx,%rdx
+    jne loop
+    ret
+
+    .pos 0x200
+stack:
